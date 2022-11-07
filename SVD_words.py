@@ -32,6 +32,7 @@ def readText(filename):
 
 if __name__=='__main__':
     
+    #texts = ["太阳照在桑干河上.txt"]
     texts = ["祝福.txt"]
     for title in texts:
         sentence=readText(title)
@@ -43,8 +44,8 @@ if __name__=='__main__':
         sentence_cut=jieba.lcut(sentence)      #分词
         
         
-        a=200  #窗口的长度
-       
+        
+        a=500  #窗口的长度 
         thr=int(0.4*math.sqrt(len(sentence_cut)/a))  #阈值
         Lcounter = collections.Counter(sentence_cut) #根据阈值thr截断的tN，tM，tR矩阵
         words,_ = zip(*Lcounter.items())
@@ -83,10 +84,63 @@ if __name__=='__main__':
         for i in range(len(twords)):
             for j in range(len(words)):      
                 tR[i][j]=a*twords_number[i]*words_number[j]/len(sentence_cut)
-                tN[i][j]=(tM[i][j]-tR[i][j])/math.sqrt(tR[i][j])      
-        np.savetxt(r'tN.txt', tN, fmt='%d', delimiter=',') 
+                tN[i][j]=(tM[i][j]-tR[i][j])/math.sqrt(tR[i][j])
+        #np.savetxt(r'tN.txt', tN, fmt='%d', delimiter=',') 
+        
+        #SVD tN矩阵
+        U,sigma,VT=la.svd(tN)
+        d=20
+        Ur=U[:,0:d]
+        sigmar=sigma[0:d]
+        VTr=VT[0:d,:]
+        tNr=Ur @ np.diag(sigmar) @ VTr
+        #np.savetxt(r'tNr.txt', tNr, fmt='%f', delimiter=',') 
        
         
+        #  v vector   V matrix
+        windows_number=len(sentence_cut)-a+1
+        V=np.zeros((windows_number,len(words)))
+        for i in range(windows_number):
+            subsentence_cut=[]
+            v=np.zeros(len(words))   #词向量
+            sum_m=0
+            for j in range(a):
+                #subsentence_cut.append(sentence_cut[i+j])   
+                #print(i,j,len(sentence_cut))
+                if((i+j)<len(sentence_cut)): 
+                   # print(i,j)
+                    subsentence_cut.append(sentence_cut[i+j])   
+                    
+            subcounter = collections.Counter(subsentence_cut) 
+            subwords,_ = zip(*subcounter.items())
+            _,subwords_number = zip(*subcounter.items())
+    
+            for q in range(len(subwords)):
+                if(subwords_number[q]>=thr):
+                    a=twords.index(subwords[q])   
+                    m=subwords_number[q]  #词在窗口中出现的次数
+                    v=v+tNr[a]*m   #词对应的SVD向量
+                    sum_m=sum_m+m*m
+            V[i]=v/math.sqrt(sum_m)
+            
+            
+        #内积   
+        C=[]  
+        for i in range(windows_number):
+            sequence=0
+            c=0
+            for j in range(windows_number):
+                if(i+j<windows_number):
+                    c=c+np.dot(V[j], V[i+j])
+                    #print(V[i])
+                    sequence=sequence+1
+                    #print(c,sequence)
+            C.append(c/sequence)
+        np.savetxt(r'C.txt',C, fmt='%f', delimiter=',')          
         
-        #v vector
+            
+            
+         
+            
+            
        
